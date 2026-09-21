@@ -36,6 +36,7 @@ import com.maxrave.domain.mediaservice.handler.ToastType
 import com.maxrave.domain.notification.DesktopNotificationManager
 import com.maxrave.simpmusic.di.viewModelModule
 import com.maxrave.simpmusic.extension.DesktopWindowChrome
+import com.maxrave.simpmusic.sori.soriUpdateModule
 import com.maxrave.simpmusic.ui.component.CustomTitleBar
 import com.maxrave.simpmusic.ui.mini_player.MiniPlayerManager
 import com.maxrave.simpmusic.ui.mini_player.MiniPlayerWindow
@@ -186,6 +187,8 @@ fun runDesktopApp(args: Array<String> = emptyArray()) {
             ),
         )
         loadKoinModules(viewModelModule)
+        // Sori: overrides core's UpdateRepository, which checks maxrave-dev/SimpMusic releases.
+        loadKoinModules(soriUpdateModule)
     }
 
     val language =

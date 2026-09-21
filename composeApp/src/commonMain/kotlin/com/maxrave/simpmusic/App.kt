@@ -753,7 +753,7 @@ fun App(
                                 onClick = {
                                     shouldShowUpdateDialog = false
                                     viewModel.showedUpdateDialog = false
-                                    openUrl("https://simpmusic.org/download")
+                                    openUrl("https://github.com/saootikim/Sori-Desktop/releases/latest")
                                 },
                             ) {
                                 Text(
