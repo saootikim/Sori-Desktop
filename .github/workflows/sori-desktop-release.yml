@@ -1,0 +1,99 @@
+name: Sori Desktop release
+
+# Builds the Windows x64 MSI and publishes it as a GitHub release.
+# Runs when version-name in gradle/libs.versions.toml changes on dev, or on demand.
+# The app's update check compares the release tag (v<version-name>) with its own version.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+    paths: [gradle/libs.versions.toml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      release: ${{ steps.version.outputs.release }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - id: version
+        run: |
+          NEW=$(grep -m1 -oP '^version-name\s*=\s*"\K[^"]+' gradle/libs.versions.toml)
+          OLD=$(git show HEAD^:gradle/libs.versions.toml 2>/dev/null | grep -m1 -oP '^version-name\s*=\s*"\K[^"]+' || true)
+          echo "version-name: '$OLD' -> '$NEW'"
+          echo "version=$NEW" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] || [ "$NEW" != "$OLD" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: check-version
+    if: needs.check-version.outputs.release == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Stage libmpv natives
+        run: ./gradlew --console=plain :composeApp:mpvSetupAll --no-configuration-cache
+
+      - name: Build MSI
+        run: ./gradlew --console=plain :desktopApp:packageReleaseMsi
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: sori-msi
+          path: desktopApp/build/compose/binaries/main-release/msi/*.msi
+          if-no-files-found: error
+
+  release:
+    needs: [check-version, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: sori-msi
+          path: dist
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          ls -la dist
+          gh release create "v$VERSION" dist/*.msi \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$VERSION" \
+            --latest \
+            --notes "Sori Desktop $VERSION (Windows x64). Download the .msi below and run it. If SmartScreen says \"Windows protected your PC\", click More info, then Run anyway."
