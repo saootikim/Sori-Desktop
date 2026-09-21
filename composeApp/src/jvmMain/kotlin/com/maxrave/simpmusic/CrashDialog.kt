@@ -70,7 +70,7 @@ object CrashDialog {
         }
 
         val dialog = JDialog().apply {
-            title = "SimpMusic - Unexpected Error"
+            title = "Sori - Unexpected Error"
             isModal = true
             defaultCloseOperation = JDialog.DISPOSE_ON_CLOSE
             preferredSize = Dimension(700, 500)

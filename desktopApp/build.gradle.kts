@@ -145,6 +145,16 @@ tasks.named<hydraulic.conveyor.gradle.WriteConveyorConfigTask>("writeConveyorCon
     }
 }
 
+// Sori: version-name is "X.Y.Z-sori.R"; MSI only accepts numeric MAJOR.MINOR.BUILD.
+val soriMsiVersion: String =
+    libs.versions.version.name.get().let { v ->
+        val m =
+            Regex("""^(\d+)\.(\d+)\.(\d+)-sori\.(\d+)$""").matchEntire(v)
+                ?: error("version-name must look like 2.1.0-sori.1, got '$v'")
+        val (major, minor, patch, rev) = m.destructured
+        "$major.$minor.${patch.toInt() * 100 + rev.toInt()}"
+    }
+
 compose.desktop {
     application {
         mainClass = "com.maxrave.simpmusic.MainKt"
@@ -167,7 +177,8 @@ compose.desktop {
             }
             targetFormats(*listTarget.toTypedArray())
             modules("jdk.unsupported")
-            packageName = "SimpMusic"
+            packageName = "Sori"
+            vendor = "saootikim"
             macOS {
                 val formatedDate =
                     Instant.now().let {
@@ -209,10 +220,15 @@ compose.desktop {
             }
             windows {
                 includeAllModules = true
-                packageVersion =
-                    libs.versions.version.name
-                        .get()
-                        .removeSuffix("-hf")
+                // Sori: user-scope MSI; the fixed upgradeUuid makes a newer MSI replace the old install.
+                packageVersion = soriMsiVersion
+                msiPackageVersion = soriMsiVersion
+                upgradeUuid = "6f1f2a4e-5b1d-4c7e-9a3b-50a1c0de5071"
+                perUserInstall = true
+                menu = true
+                menuGroup = "Sori"
+                shortcut = true
+                dirChooser = false
                 iconFile.set(rootDir.resolve("composeApp/icon/circle_app_icon.ico"))
             }
             linux {
